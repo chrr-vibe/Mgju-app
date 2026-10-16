@@ -1,5 +1,5 @@
 // Raise VERSION whenever you upload a new index.html, so the installed app updates.
-const VERSION = 'v3';
+const VERSION = 'v4';
 const PREFIX = 'my-schedule-';            // only this app's caches (other apps share the github.io address)
 const CACHE = PREFIX + VERSION;
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
