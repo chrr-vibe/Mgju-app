@@ -109,6 +109,11 @@
   .home-box .none{color:var(--muted);font-size:14px;text-align:center;}
   .home-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px;}
 
+  .backup{margin-top:30px;padding-top:18px;border-top:2px dashed var(--accent);text-align:center;}
+  .backup-title{font-size:15px;font-weight:700;color:var(--ink);}
+  .backup .hint{margin:6px auto 0;max-width:34em;}
+  .backup .home-actions{margin-top:12px;}
+
   /* ───── Calendar ───── */
   .cal-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
   .cal-title{font-size:22px;font-weight:700;color:var(--ink);min-width:170px;text-align:center;}
@@ -359,6 +364,16 @@
             <button class="pill-btn" id="rmImgBtn" style="display:none">Remove</button>
           </div>
           <div class="hint" id="homeNote" style="text-align:center"></div>
+          <div class="backup">
+            <div class="backup-title">Backup</div>
+            <p class="hint">Save your calendar, daily list, image and theme to a file, or bring them back from one.</p>
+            <div class="home-actions">
+              <button class="pill-btn small" id="exportBtn">Save backup file</button>
+              <button class="pill-btn small" id="importBtn">Restore from file</button>
+            </div>
+            <div class="hint" id="backupNote"></div>
+            <input type="file" id="importFile" accept="application/json,.json" hidden>
+          </div>
           <input type="file" id="file" accept="image/*" hidden>
         </section>
 
@@ -935,6 +950,40 @@ requestAnimationFrame(t=>{ petNext = t + PET_SPEED.normal; requestAnimationFrame
 Object.values(PET_IMG).forEach(src=>{ const i=new Image(); i.src=src; });
 setInterval(petCheck,1000);
 document.addEventListener('visibilitychange',petCheck);
+
+/* ───── Backup: export / import ───── */
+$('exportBtn').onclick = ()=>{
+  const data = {app:'my-schedule', version:1, savedAt:new Date().toISOString(),
+    events, rows, mainImg, theme:document.documentElement.dataset.theme};
+  const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+  const url = URL.createObjectURL(blob), a = document.createElement('a'), d = new Date();
+  a.href = url; a.download = `my-schedule-backup-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  $('backupNote').textContent = 'Backup file saved to your downloads.';
+};
+$('importBtn').onclick = ()=> $('importFile').click();
+$('importFile').addEventListener('change', e=>{
+  const f = e.target.files && e.target.files[0]; e.target.value = '';
+  if(!f) return;
+  const fr = new FileReader();
+  fr.onload = async ()=>{
+    try{
+      const d = JSON.parse(fr.result);
+      if(!d || d.app!=='my-schedule') throw new Error('not a backup');
+      events = (d.events && typeof d.events==='object') ? d.events : {};
+      rows = Array.isArray(d.rows) ? d.rows : [];
+      mainImg = (d.mainImg && d.mainImg.out) ? d.mainImg : null;
+      await store.set('events',events); await store.set('rows',rows); await store.set('mainImg',mainImg);
+      if(['blackpink','yuuji','megumi'].includes(d.theme)) setTheme(d.theme);
+      renderHome(); renderCal(); renderRows();
+      $('backupNote').textContent = 'Restored from backup.';
+    }catch(err){
+      $('backupNote').textContent = 'This file is not a My Schedule backup. Choose a file made with “Save backup file”.';
+    }
+  };
+  fr.readAsText(f);
+});
 
 /* ───── Offline / install support ───── */
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
